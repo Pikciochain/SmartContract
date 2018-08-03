@@ -1,0 +1,29 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Distribution / packaging
+build/
+dist/
+eggs/
+.eggs/
+wheels/
+*.egg-info/
+*.egg
+
+
+# Unit test / coverage reports
+.coverage*
+.cache
+.DS_Store
+
+# Environments
+venv/
+
+# IntelliJ
+.idea/
+
+# output
+output/
+assets/interfaces/
