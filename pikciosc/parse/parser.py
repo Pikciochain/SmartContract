@@ -3,8 +3,9 @@
 It provides entrypoints to validate a Smart Contract and generate its
 interface.
 """
+import json
 import logging
-from os import path
+from argparse import ArgumentParser
 
 from mypy.build import parse, Options
 from mypy.errors import CompileError
@@ -46,41 +47,6 @@ def parse_string(source, filename):
     return interface
 
 
-def _build_parse_result(contract_interface=None, error=None):
-    """Builds a response to a parse() call.
-
-    :param contract_interface: In case of successful parsing, the contract
-        interface definition
-    :type contract_interface: ContractInterface
-    :param error: In case of failure, the error message.
-    :type error: str
-    :return: A dictionary encapsulating a parsing result.
-    :rtype: dict
-    """
-    return contract_interface.to_dict() if error is None else {'error': error}
-
-
-def parse_string_cli(source, filename='submitted_code'):
-    """Parses provided source code to generate a contract interface.
-
-    If the code cannot be parsed or code fails to validate, interface won't be
-    generated and an error message will be forwarded in the returned object.
-
-    :param source: The source code of the contract to parse.
-    :type source: str
-    :param filename: Optional name of the submitted file containing the code.
-    :type filename: str
-    :return: A dictionary encapsulating a parsing result.
-    :rtype: dict
-    """
-    try:
-        result = parse_string(source, filename)
-        return _build_parse_result(contract_interface=result)
-    except (CompileError, ValueError, NotImplementedError) as e:
-        logging.error(e)
-        return _build_parse_result(error=str(e))
-
-
 def parse_file_cli(source_path):
     """Parses provided source code in a file to generate a contract interface.
 
@@ -94,4 +60,34 @@ def parse_file_cli(source_path):
     """
     with open(source_path) as fd:
         code = fd.read()
-    return parse_string_cli(code, path.basename(source_path))
+    try:
+        sc_interface = parse_string(code, 'submitted_code')
+        return sc_interface.to_dict()
+    except (CompileError, ValueError, NotImplementedError) as e:
+        logging.error(e)
+        return {'error': str(e)}
+
+
+def _parse_args():
+    """Loads the arguments from the command line."""
+    parser = ArgumentParser(description='Pikcio Smart Contract Parsing '
+                                        'module.')
+    parser.add_argument("file", type=str, help='source code file to parse')
+    parser.add_argument("-i", "--indent", type=int,
+                        help='If positive, prettify the output json with tabs')
+    parser.add_argument("-o", "--output", type=str, dest='output',
+                        help='Path to the generated interface.')
+    known_args, _ = parser.parse_known_args()
+    return known_args.file, known_args.indent, known_args.output
+
+
+if __name__ == '__main__':
+    logging.basicConfig(level=logging.INFO,
+                        format='%(asctime)s - %(levelname)s - %(message)s')
+
+    args_file, indent, output_path = _parse_args()
+    result = json.dumps(parse_file_cli(args_file), indent=indent)
+    if output_path:
+        with open(output_path, 'w') as outfile:
+            outfile.write(result)
+    print(result)

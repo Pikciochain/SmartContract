@@ -1,8 +1,10 @@
 """This module encapsulates the tools chose to compile the code into
 bytecode.
 """
+import logging
 import uuid
 import tempfile
+from argparse import ArgumentParser
 from py_compile import compile
 
 import os
@@ -47,3 +49,22 @@ def compile_source(source, dest_file=None):
     finally:
         if os.path.exists(temp_name):
             os.remove(temp_name)
+
+
+def _parse_args():
+    """Loads the arguments from the command line."""
+    parser = ArgumentParser(description='Pikcio Smart Contract Compiling '
+                                        'module.')
+    parser.add_argument("file", type=str, help='source code file to compile')
+    parser.add_argument("-o", "--output", type=str, dest='output',
+                        help='Path to the compiled script.')
+    known_args, _ = parser.parse_known_args()
+    return known_args.file, known_args.indent, known_args.output
+
+
+if __name__ == '__main__':
+    logging.basicConfig(level=logging.INFO,
+                        format='%(asctime)s - %(levelname)s - %(message)s')
+
+    args_file, indent, output_path = _parse_args()
+    compile_file(args_file, output_path)

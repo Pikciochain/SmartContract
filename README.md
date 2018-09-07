@@ -21,6 +21,8 @@ generate contract bytecode.
 Smart Contract.
 * `invoke` contains the tools used to execute a Smart Contract in a sandbox.
 This module currently supports docker only.
+* `abi` is not executable directly but let translate invocation details from 
+and to bytecode.
 
 ## Getting Started
 
@@ -31,7 +33,7 @@ See deployment for notes on how to deploy the project on a live system.
 ### Prerequisites
 
 This project is built upon **Python 3**.
-There is no other prerequisite of third-party required.
+There is no other prerequisite or third-party required.
 
 
 ### Installing
@@ -57,120 +59,101 @@ pip install -r dev-requirements.txt
 ```
 
 ### Running CLI
-The package can be run as a CLI:
+The package has several entrypoints, one per executable submodule. Example with 
+the `compile` one:
 
 ```bash
-python -m pikciosc --help
+python -m pikciosc.compile --help
 ```
 
 You should get something like:
 ```bash
-usage: __main__.py [-h] [-f FILE] [-i INDENT] {parse,quote,compile}
+usage: compile.py [-h] [-o OUTPUT] file
 
-Pikcio Smart Contract package.
+Pikcio Smart Contract Compiling module.
 
 positional arguments:
-  {parse,quote,compile}
-                        Name of service to use
+  file                  source code file to compile
 
 optional arguments:
   -h, --help            show this help message and exit
-  -f FILE, --file FILE  source code file to submit
-  -i INDENT, --indent INDENT
-                        If positive, prettify the output json with tabs
+  -o OUTPUT, --output OUTPUT
+                        Path to the compiled script.
 ```
 
-Available services are:
-1. `parse`: Validates a smart contract and generates its interface,
-2. `quote`: Creates quotations on Smart Contract prior to their submission.
-3. `compile`: Compiles python script into bytecode, using Pikcio configuration.
-
-In addition, it is possible to execute a contract using the dedicated service 
-`invoke`:
-
+In any case, if you are unsure about how to run a submodule try:
 ```bash
-python pikciosc/invoke/invoke.py --help
+python -m pikciosc.<module> --help
 ```
 
-You should get something like:
-```bash
-usage: invoke.py [-h] [--kwargs [KWARGS [KWARGS ...]]] [-i INDENT]
-                 bin_folder interface_folder execution_folder endpoint
-                 contract_name
-
-Pikcio Smart Contract Invoker
-
-positional arguments:
-  bin_folder            folder where python binaries are stored.
-  interface_folder      folder where contract interfaces are stored.
-  execution_folder      folder where contract executions are stored.
-  endpoint              endpoint to call
-  contract_name         Name of contract to execute.
-
-optional arguments:
-  -h, --help            show this help message and exit
-  --kwargs [KWARGS [KWARGS ...]], -kw [KWARGS [KWARGS ...]]
-                        List of args names and values
-  -i INDENT, --indent INDENT
-                        If positive, prettify the output json with tabs
-
-```
-
-
-##### Examples
-Let's assume there is a contract called *smart_contract.py* at the root.
+#### Parse
+`parse` validates a smart contract and generates its interface. You need to 
+provide the path to the file to parse along with optional output options.
 
 To parse a contract:
 ```bash
-python -m pikciosc parse --file smart_contract.py --indent 4
+python -m pikciosc.parse smart_contract.py --indent 4 -o interface.json
 ```
 
-To get a quotation for a contract:
-```bash
-export PKC_QUOTE_CHAR_COST=0.2 && python -m pikciosc quote --file smart_contract.py --indent 4
-```
+#### Compile
+`compile` compiles python script into bytecode, using Pikcio configuration. 
+You need to provide the path to the file to compile along with optional output 
+options.
 
 To compile a contract:
 ```bash
-python -m pikciosc compile --file smart_contract.py --indent 4
+python -m pikciosc.compile smart_contract.py -o smart_contract.pyc
 ```
 
-To execute a contract, assuming you have a directory `dist` which contains:
+#### Quote
+`quote` creates quotations on Smart Contract prior to their 
+submission/execution.
+
+Quote currently offers two services: `submit` an `invoke`, each related to a 
+different quotation.
+
+*NOTE: To successfully perform a quotation, you need to provide the environment
+variables that drive the computation.*
+- *PKC_SC_SUBMIT_CHAR_COST*: Required in `submit` service. Tells the price of a single character of code, once encode to base 64.
+- *PKC_SC_EXEC_LINE_COST*: Required in `invoke` service. Tells the price of a single line of executed endpoint.
+
+To get a quotation for a contract submission:
+```bash
+PKC_SC_SUBMIT_CHAR_COST=0.2 \
+python -m pikciosc.quotations submit smart_contract.py
+```
+
+To get a quotation for a contract invocation:
+```bash
+PKC_SC_EXEC_LINE_COST=0.4 \
+python -m pikciosc.quotations invoke smart_contract.pyc <endpoint>
+```
+
+#### Invoke
+`invoke` module lets you execute a contract. This is the most complicated 
+module. It uses docker to execute provided code in a sandbox.
+
+To execute a contract, let's assume you have a directory `dist` which contains:
 - `binaries`: a folder where you store compiled contracts
 - `interfaces`: a folder where you keep ABIs (contracts JSON interfaces)
-- `executions`: a folder where tracking of contracts executions is performed
+- `executions`: a folder where you keep previous executions of each contract.
 
 ```bash
-export PYTHONPATH='.' && \
-python pikciosc/invoke/invoke.py \
-	dist/binaries dist/interfaces dist/executions \
-	smart_contract compute_rate -kw amount 0.3
+python -m pikciosc.invoke.invoke dist/binaries dist/interfaces \
+	smart_contract compute_rate -kw amount 0.3 \
+	--last_exec_path dist/executions/smart_contract/last_exec.json \
+	-i 4 -o dist/executions/smart_contract/new_exec.json
 ```
 
-Alternatively, if *docker* is not installed on your machine, you can use:
+Alternatively, if you don't want to use *docker* for a test, you can use:
 ```bash
-export PYTHONPATH='.' && export SANDBOX=None && \
-python pikciosc/invoke/invoke.py \
-	dist/binaries dist/interfaces dist/executions \
-	smart_contract compute_rate -kw amount 0.3
+SANDBOX=None \
+python -m pikciosc.invoke.invoke dist/binaries dist/interfaces \
+	smart_contract compute_rate -kw amount 0.3 \
+	-le dist/executions/smart_contract/last_exec.json \
+	-i 4 -o dist/executions/smart_contract/new_exec.json
 ```
 This will execute the script but without any sandbox.
-
-#### CLI output
-
-CLI output is a JSON object representing the result of executing a service.
-For example:
-```bash
-export PKC_QUOTE_CHAR_COST=0.2 && python -m pikciosc quote --file <example_file> --indent 4
-```
-Will generate:
-```
-{
-    "code_len": 280,
-    "char_cost": 0.2,
-    "total_price": 56.0
-}
-```
 
 ## Running the tests
 

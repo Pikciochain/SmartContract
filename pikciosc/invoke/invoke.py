@@ -5,8 +5,6 @@ import logging
 import os
 from argparse import ArgumentParser
 
-# Because those package are not in a subdirectory, please use export PYTHONPATH
-# before running the CLI mode.
 from pikciosc.invoke.sandbox import execute_sandbox
 from pikciosc.invoke.utils import inflate_cli_arguments
 from pikciosc.models import ExecutionInfo, ContractInterface
@@ -22,15 +20,10 @@ def find_script(bin_folder, contract_name):
     :return: Path to the script to execute, or None if nothing found.
     """
     # Look for compiled scripts first.
-    script_path = os.path.join(bin_folder, '{}.pyc'.format(contract_name))
-    if os.path.exists(script_path):
-        return script_path
-
-    # Fall back on normal scripts afterwards.
-    script_path = os.path.join(bin_folder, '{}.py'.format(contract_name))
-    if os.path.exists(script_path):
-        return script_path
-
+    for ext in ('pyc', 'py'):
+        script_path = os.path.join(bin_folder, f'{contract_name}.{ext}')
+        if os.path.exists(script_path):
+            return script_path
     return None
 
 
@@ -110,13 +103,10 @@ def invoke_cli(bin_folder, interface_folder, last_exec_path, contract_name,
     :type flat_kwargs: list
     :return: the execution details.
     """
-    try:
-        kwargs = inflate_cli_arguments(flat_kwargs)
-        last_exec_info = ExecutionInfo.from_file(last_exec_path)
-        return invoke(bin_folder, interface_folder, last_exec_info,
-                      contract_name, endpoint, kwargs).to_dict()
-    except Exception as e:
-        return {"error": str(e)}
+    kwargs = inflate_cli_arguments(flat_kwargs)
+    last_exec_info = ExecutionInfo.from_file(last_exec_path)
+    return invoke(bin_folder, interface_folder, last_exec_info,
+                  contract_name, endpoint, kwargs).to_dict()
 
 
 def _parse_args():
@@ -126,21 +116,25 @@ def _parse_args():
                         help='folder where python binaries are stored.')
     parser.add_argument("interface_folder", type=str,
                         help='folder where contract interfaces are stored.')
-    parser.add_argument("execution_folder", type=str,
-                        help='folder where contract executions are stored.')
     parser.add_argument("endpoint", type=str,
                         help='endpoint to call')
     parser.add_argument("contract_name", type=str,
                         help='Name of contract to execute.')
     parser.add_argument("--kwargs", "-kw", dest="kwargs", nargs='*',
                         help='List of args names and values')
+    parser.add_argument("--last_exec_path", '-le', type=str,
+                        dest="last_exec_path", default='',
+                        help='Path to the last execution, if any')
     parser.add_argument("-i", "--indent", type=int,
                         help='If positive, prettify the output json with tabs')
+    parser.add_argument("-o", "--output", type=str, dest='output',
+                        help='Path to the output file to create')
     known_args, _ = parser.parse_known_args()
     return (
         known_args.bin_folder, known_args.interface_folder,
-        known_args.execution_folder, known_args.endpoint,
-        known_args.contract_name, known_args.kwargs, known_args.indent
+        known_args.last_exec_path, known_args.endpoint,
+        known_args.contract_name, known_args.kwargs, known_args.indent,
+        known_args.output
     )
 
 
@@ -148,4 +142,10 @@ if __name__ == '__main__':
     logging.basicConfig(level=logging.DEBUG,
                         format='%(asctime)s - %(levelname)s - %(message)s')
     args = _parse_args()
-    print(json.dumps(invoke_cli(*args[:-1]), indent=args[-1]))
+    output_path = args[-1]
+    json_result = json.dumps(invoke_cli(*args[:-2]), indent=args[-2])
+
+    if output_path:
+        with open(output_path, 'w') as outfile:
+            outfile.write(json_result)
+    print(json_result)

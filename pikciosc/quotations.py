@@ -1,14 +1,15 @@
 """This module includes features enabling to create quotes related to Smart
 Contract submission."""
+import logging
 import os
 import json
 import base64
 import inspect
 import importlib.util
+from argparse import ArgumentParser
 from os import environ
 
 from pikciosc.compile import compile_source
-
 
 ENV_PKC_SC_SUBMIT_CHAR_COST = 'PKC_SC_SUBMIT_CHAR_COST'
 ENV_PKC_SC_EXEC_LINE_COST = 'PKC_SC_EXEC_LINE_COST'
@@ -130,20 +131,53 @@ def get_exec_quotation(compiled_file, endpoint_name):
     return Quotation(len(lines), cost_per_line)
 
 
-def get_submit_quotation_cli(source):
-    """Creates and returns a quotation for provided source code.
+def get_submit_quotation_cli(source_file):
+    """Creates and returns a quotation for submitting provided source code.
 
-    The source code is compiled and encoded as base64 before quotation takes
-    place.
-
-    :param source: The source code to compile.
-    :type source: str
-    :return: A JSON dictionary standing for the quotation.
-    :rtype: dict
+    :param source_file: The path to the submitted code source.
+    :type source_file: str
+    :return: The quotation.
+    :rtype: Quotation
     """
-    quotation = get_submit_quotation(source)
-    return {
-        'code_len': quotation.code_length,
-        'char_cost': quotation.char_cost,
-        'total_price': quotation.total_price
-    }
+    with open(source_file) as fd:
+        source = fd.read()
+    return get_submit_quotation(source)
+
+
+def _parse_args():
+    """Loads the arguments from the command line."""
+    parser = ArgumentParser(description='Pikcio Smart Contract Quotation '
+                                        'module.')
+    parser.add_argument("service", choices=['submit', 'invoke'],
+                        help='Name of service to use')
+    parser.add_argument(dest="file", type=str,
+                        help='source code file to submit/invoke')
+    parser.add_argument("-e", "--endpoint", dest="endpoint", type=str,
+                        help='Invoked endpoint (for invocation service only)')
+    parser.add_argument("-o", "--output", type=str, dest='output',
+                        help='Path to the generated interface.')
+    known_args, _ = parser.parse_known_args()
+    return (
+        known_args.service, known_args.file, known_args.endpoint,
+        known_args.indent, known_args.output
+    )
+
+
+if __name__ == '__main__':
+    logging.basicConfig(level=logging.INFO,
+                        format='%(asctime)s - %(levelname)s - %(message)s')
+
+    service, args_file, _endpoint, indent, output_path = _parse_args()
+    if service == 'submit':
+        quotation = get_submit_quotation_cli(args_file)
+    elif service == 'invoke':
+        if not _endpoint:
+            raise ValueError('Endpoint required to get a invoke quotation.')
+        quotation = get_exec_quotation(args_file, _endpoint)
+    else:
+        raise ValueError('Unknown service for quotation module.')
+    result = quotation.to_json()
+    if output_path:
+        with open(output_path, 'w') as outfile:
+            outfile.write(result)
+    print(result)

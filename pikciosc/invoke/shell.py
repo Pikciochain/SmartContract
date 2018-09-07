@@ -6,8 +6,6 @@ import json
 import importlib.util
 from argparse import ArgumentParser
 
-# Because that package is not in a subdirectory, please use export PYTHONPATH
-# before running the CLI mode.
 from pikciosc.invoke.utils import inflate_cli_arguments
 from pikciosc.models import CallInfo, ExecutionInfo, Variable
 
@@ -149,13 +147,20 @@ def _parse_args():
                         help='List of args names and values')
     parser.add_argument("-i", "--indent", type=int,
                         help='If positive, prettify the output json with tabs')
+    parser.add_argument("-o", "--output", type=str, dest='output',
+                        help='Path to the output file to create')
     known_args, _ = parser.parse_known_args()
     return (
         known_args.script, known_args.storage, known_args.endpoint,
-        known_args.kwargs, known_args.indent
+        known_args.kwargs, known_args.indent, known_args.output
     )
 
 
 if __name__ == '__main__':
     cli_args = _parse_args()
-    print(json.dumps(execute_cli(*cli_args[:-1]), indent=cli_args[-1]))
+    output_path = cli_args[-1]
+    json_result = json.dumps(execute_cli(*cli_args[:-2]), indent=cli_args[-2])
+    if output_path:
+        with open(output_path, 'w') as outfile:
+            outfile.write(json_result)
+    print(json_result)
