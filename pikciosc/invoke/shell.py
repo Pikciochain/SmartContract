@@ -114,13 +114,13 @@ def execute(module_path, storage_vars, endpoint_name, kwargs):
     return execution_info
 
 
-def execute_cli(module_path, flat_storage_vars, endpoint_name, flat_args):
+def execute_cli(module_path, storage_file, endpoint_name, flat_args):
     """Calls a module endpoint after restoring storage vars.
 
     :param module_path: Path to module to call endpoint in.
     :type module_path: str
-    :param flat_storage_vars: The list of storage vars components to inflate.
-    :type flat_storage_vars: list
+    :param storage_file: Path to the file wrapping of storage vars to inflate.
+    :type storage_file: str
     :param endpoint_name: Name of endpoint to call.
     :type: endpoint_name: str
     :param flat_args: Named arguments to pass to the endpoint
@@ -129,7 +129,7 @@ def execute_cli(module_path, flat_storage_vars, endpoint_name, flat_args):
     :rtype: dict
     """
     args = inflate_cli_arguments(flat_args)
-    storage_vars = unserialise_vars(flat_storage_vars)
+    storage_vars = unserialise_vars(storage_file)
     execution_info = execute(module_path, storage_vars, endpoint_name, args)
     return execution_info.to_dict()
 
