@@ -6,7 +6,7 @@ import json
 import importlib.util
 from argparse import ArgumentParser
 
-from pikciosc.invoke.utils import inflate_cli_arguments
+from pikciosc.invoke.utils import inflate_cli_arguments, unserialise_vars
 from pikciosc.models import CallInfo, ExecutionInfo, Variable
 
 
@@ -129,7 +129,7 @@ def execute_cli(module_path, flat_storage_vars, endpoint_name, flat_args):
     :rtype: dict
     """
     args = inflate_cli_arguments(flat_args)
-    storage_vars = inflate_cli_arguments(flat_storage_vars)
+    storage_vars = unserialise_vars(flat_storage_vars)
     execution_info = execute(module_path, storage_vars, endpoint_name, args)
     return execution_info.to_dict()
 
@@ -141,8 +141,8 @@ def _parse_args():
                         help='python script to import')
     parser.add_argument("endpoint", type=str,
                         help='endpoint to call')
-    parser.add_argument("--storage", "-s", dest="storage", nargs='*',
-                        help='List of storage vars names and values')
+    parser.add_argument("--storage", "-s", dest="storage",
+                        help='Path to serialised storage vars')
     parser.add_argument("--kwargs", "-kw", dest="kwargs", nargs='*',
                         help='List of args names and values')
     parser.add_argument("-i", "--indent", type=int,

@@ -85,7 +85,7 @@ class Variable(TypedNamed):
     """Stands for an object that has a name and a typed value."""
 
     def __init__(self, name, typ, value):
-        """Creates a new TypedValue from provided arguments.
+        """Creates a new Variable from provided arguments.
 
         :param name: The object name.
         :type name: str

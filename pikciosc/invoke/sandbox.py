@@ -4,34 +4,14 @@ import json
 import logging
 import os
 import subprocess
-import itertools
 from tempfile import TemporaryFile
 
 from pikciosc.invoke import shell
+from pikciosc.invoke.utils import flatten_vars_for_cli, serialise_vars
 from pikciosc.models import ExecutionInfo
 
 _CURRENT_DIR = os.path.dirname(__file__)
 _PICKIO_DIR = os.path.dirname(_CURRENT_DIR)
-
-
-def _flatten_vars_for_cli(variables):
-    """Returns a list of strings ready to be passed to a cli parameter
-    accepting variables, like --kwargs or --storage
-
-    :param variables: The list of variables to prepare.
-    :type variables: list[Variable]
-    :return: an enumerable of strings
-    :rtype: list[str]
-    """
-    flat_vars_lists = [
-        [
-            var.name,
-            f'"{var.value}"' if isinstance(var.value, str) else
-            f'b"{var.value}"' if isinstance(var.value, bytes) else
-            str(var.value)
-        ] for var in variables
-    ]
-    return itertools.chain(*flat_vars_lists)
 
 
 def _docker_execute(script_path, storage_vars, endpoint, kwargs):
@@ -63,8 +43,8 @@ def _docker_execute(script_path, storage_vars, endpoint, kwargs):
         '-w', '/usr/src',
         'python:3.6', 'python', '/usr/src/pikciosc/invoke/shell.py',
         f'/usr/src/scripts/{script_name}', endpoint,
-        '--storage', *_flatten_vars_for_cli(storage_vars),
-        '--kwargs', *_flatten_vars_for_cli(kwargs),
+        '--storage', serialise_vars(storage_vars),
+        '--kwargs', *flatten_vars_for_cli(kwargs),
         '--indent', '4'
     ]
     logging.debug(docker_args)
