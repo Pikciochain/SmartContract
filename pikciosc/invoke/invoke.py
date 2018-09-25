@@ -73,7 +73,6 @@ def invoke(bin_folder, interface_folder, last_exec_info, contract_name,
         raise ValueError(f'Endpoint {endpoint} is invalid for contract '
                          f'{contract_name}.')
 
-    # Acquire execution lock using "with"
     vars_ = (
         last_exec_info.storage_after if last_exec_info else
         interface.storage_vars
